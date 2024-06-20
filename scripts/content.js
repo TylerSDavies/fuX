@@ -1,63 +1,136 @@
+let counter = 100;
+
 function handleDOMUpdate(mutationsList, observer) {
     mutationsList.forEach(mutation => {
+        //Check if a DOM update occured
         if (mutation.type === 'childList') {
-            console.log('DOM updated');
-
-            // Check if the button already exists on the page
-            const existingButton = document.querySelector('#copyLinkButton');
-            if (!existingButton) {
-                // Create the button element
-                const button = document.createElement('button');
-                button.id = 'copyLinkButton';
-                button.innerText = 'FixUpX';
-                button.style.color = '#ffff';
-                button.style.backgroundColor = '#0000';
-                button.style.borderRadius = '10px';
-                button.style.fontFamily = 'TwitterChirp';
-                button.style.border = 'solid 0.5px #ffff';
-                button.style.width = '65px';
-                button.style.textAlign = 'center';
-                button.style.cursor = 'pointer';
-
-                // Add an event listener for button click
-                button.addEventListener('click', () => {
-                    // Copy the current webpage URL to the clipboard
-                    const url = window.location.href;
-                    const fixedUrl = url.replace("://x", "://fixupx")
-                    navigator.clipboard.writeText(fixedUrl)
-                        .then(() => {
-                            button.innerText = 'Copied';
-                            button.style.border = 'solid 0.5px #8f8f';
-                        })
-                        .catch(err => {
-                            button.innerText = 'Failed';
-                            button.style.border = 'solid 0.5px #f00f';
-                        });
-                    setTimeout(() => {
-                        button.innerText = 'FixUpX';
-                        button.style.border = 'solid 0.5px #ffff';
-                    }, 2000);
-                });
-
-                // Select the target element to insert the button after
-                const targetElement = document.querySelector('#react-root > div > div > div.css-175oi2r.r-1f2l425.r-13qz1uu.r-417010.r-18u37iz > main > div > div > div > div.css-175oi2r.r-kemksi.r-1kqtdi0.r-1ua6aaf.r-th6na.r-1phboty.r-16y2uox.r-184en5c.r-1c4cdxw.r-1t251xo.r-f8sm7e.r-13qz1uu.r-1ye8kvj > div > section > div > div > div:nth-child(1) > div > div > article > div > div > div:nth-child(3) > div.css-175oi2r.r-12kyg2d > div > div.css-175oi2r.r-1wbh5a2.r-1a11zyx');
-
-                // Insert the button after the target element
-                if (targetElement) {
-                    targetElement.insertAdjacentElement('afterend', button);
-                } else {
-                    console.log('Target element not found');
-                }
-            } else {
-                console.log('Button already exists on the page');
+            //Get all like buttons on page
+            const likeButtons = [...document.querySelectorAll('[data-testid="like"]')];
+            //Create button after every like button if likeButtons isn't empty
+            if (likeButtons.length > 0) {
+                likeButtons.forEach(likeButton => createButton(likeButton));
             }
         }
     });
 }
 
 
+function buttonExistsAfter(targetElement) {
+    // Get the next sibling of the targetElement
+    const targetElementParent = targetElement.parentNode;
+    let nextElement = targetElementParent.nextElementSibling;
+    
+    // Check if the next sibling has the class 'copy-link-button'
+    if (nextElement && nextElement.classList.contains('copy-link-button-container')) {
+        return true;
+    }
+    return false;
+}
+
+
+function getButtonLink(targetElement) {
+    // Assuming targetElement is a <time> element, find its closest parent <article>
+    const parentArticle = findParentArticle(targetElement);
+    if (parentArticle) {
+        // Query for the <time> element within the parent article
+        const timeElement = parentArticle.querySelector('time');
+        if (timeElement) {
+            // Find the closest parent <a> element (assuming it contains the href attribute)
+            const linkElement = timeElement.closest('a');
+            if (linkElement) {
+                // Retrieve the href attribute from the <a> element
+                const targetUrl = linkElement.getAttribute('href');
+                return targetUrl;
+            } else {
+                console.error('Parent <a> element not found for <time> element.');
+            }
+        } else {
+            console.error('Child <time> element not found within parent <article>.');
+        }
+    } else {
+        console.error('Parent <article> element not found for target element.');
+    }
+    return null; // Return null if any required elements are not found
+}
+
+
+function findParentArticle(targetElement) {
+    let parent = targetElement.parentElement;
+    
+    while (parent) {
+        if (parent.tagName.toLowerCase() === 'article') {
+            return parent; // Return the <article> element once found
+        }
+        parent = parent.parentElement; // Move to the next parent element
+    }
+    return null;
+}
+
+
+function createButton(targetElement) {
+    //Check if button exists after targetElement and exit if one does
+    if (buttonExistsAfter(targetElement)) return;
+
+    if (counter <= 0) return;
+    else counter -= 1;
+
+    //Create the button element
+    const button = document.createElement('button');
+    button.classList.add('copy-link-button');
+    button.innerText = 'FixUpX';
+    button.style.color = 'rgb(113, 118, 123)';
+    button.style.backgroundColor = '#0000';
+    button.style.border = '2px solid rgb(113, 118, 123)';
+    button.style.borderRadius = '12px';
+    button.style.fontFamily = 'TwitterChirp';
+    button.style.width = '65px';
+    button.style.textAlign = 'center';
+    button.style.verticalAlign = 'middle';
+    button.style.cursor = 'pointer';
+    button.style.height = '24px';
+    button.style.fontWeight = '500';
+    button.style.fontSize = '14px';
+
+
+    //Add an event listener for button click
+    button.addEventListener('click', () => {
+        //Copy the current webpage URL to the clipboard
+        const postUrl = getButtonLink(targetElement);
+        const finalUrl = 'https://fixupx.com' + postUrl;
+        navigator.clipboard.writeText(finalUrl)
+            .then(() => {
+                button.innerText = 'Copied';
+                button.style.color = '#0f0f';
+                button.style.borderColor = '#0f0f';
+            })
+            .catch(err => {
+                button.innerText = 'Failed';
+                button.style.color = '#f00f';
+                button.style.borderColor = '#f00f';
+            });
+        setTimeout(() => {
+            button.innerText = 'FixUpX';
+            button.style.color = 'rgb(113, 118, 123)';
+            button.style.borderColor = 'rgb(113, 118, 123)';
+        }, 2000);
+    });
+
+    //Create the buttonContainer element
+    const buttonContainer = document.createElement('div');
+    buttonContainer.classList.add('copy-link-button-container');
+    buttonContainer.style.margin = 'auto';
+    buttonContainer.appendChild(button);
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.flex = '1.25';
+    buttonContainer.style.justifyContent = 'flex-start';
+    buttonContainer.style.minWidth = '70px';
+
+    //Create buttonContainer after targetElement's parent
+    const targetElementParent = targetElement.parentNode;
+    targetElementParent.insertAdjacentElement('afterend', buttonContainer);
+}
+
 
 const observer = new MutationObserver(handleDOMUpdate);
 const config = { childList: true, subtree: true };
-
 observer.observe(document.body, config);

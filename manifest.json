@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "fuX",
   "description": "Adds FixUpX domain for easy embeds from X/Twitter",
-  "version": "0.1",
+  "version": "0.2",
   "action": {
     "default_popup": "fuX.html",
     "default_icon": "icon.png"
