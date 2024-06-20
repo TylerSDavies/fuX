@@ -1,5 +1,3 @@
-let counter = 100;
-
 function handleDOMUpdate(mutationsList, observer) {
     mutationsList.forEach(mutation => {
         //Check if a DOM update occured
@@ -70,9 +68,6 @@ function findParentArticle(targetElement) {
 function createButton(targetElement) {
     //Check if button exists after targetElement and exit if one does
     if (buttonExistsAfter(targetElement)) return;
-
-    if (counter <= 0) return;
-    else counter -= 1;
 
     //Create the button element
     const button = document.createElement('button');
