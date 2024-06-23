@@ -3,7 +3,9 @@ function handleDOMUpdate(mutationsList, observer) {
         //Check if a DOM update occured
         if (mutation.type === 'childList') {
             //Get all like buttons on page
-            const likeButtons = [...document.querySelectorAll('[data-testid="like"]')];
+            let likeButtons = [...document.querySelectorAll('[data-testid="like"]')];
+            const unlikeButtons = [...document.querySelectorAll('[data-testid="unlike"]')];
+            likeButtons = likeButtons.concat(unlikeButtons);
             //Create button after every like button if likeButtons isn't empty
             if (likeButtons.length > 0) {
                 likeButtons.forEach(likeButton => createButton(likeButton));
