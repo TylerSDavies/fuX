@@ -30,10 +30,10 @@ function buttonExistsAfter(targetElement) {
 
 function getButtonLink(targetElement) {
     // Assuming targetElement is a <time> element, find its closest parent <article>
-    const parentArticle = findParentArticle(targetElement);
-    if (parentArticle) {
+    const parentElement = findParentElement(targetElement);
+    if (parentElement && parentElement.tagName.toLowerCase() === 'article') {
         // Query for the <time> element within the parent article
-        const timeElement = parentArticle.querySelector('time');
+        const timeElement = parentElement.querySelector('time');
         if (timeElement) {
             // Find the closest parent <a> element (assuming it contains the href attribute)
             const linkElement = timeElement.closest('a');
@@ -47,21 +47,49 @@ function getButtonLink(targetElement) {
         } else {
             console.error('Child <time> element not found within parent <article>.');
         }
+    } else if (parentElement && parentElement.getAttribute('role') === 'group') {
+        // Query child elements within the role="group" parent for role="link"
+        const linkElement = parentElement.querySelector('[role="link"]');
+        if (linkElement) {
+            // Retrieve the href attribute from the <a> element
+            const targetUrl = linkElement.getAttribute('href');
+            // Remove '/analytics' if it exists in the URL
+            if (targetUrl && targetUrl.includes('/analytics')) {
+                return targetUrl.replace('/analytics', '');
+            }
+            return targetUrl;
+        } else {
+            console.error('<a> element with role="link" not found within parent [role="group"].');
+        }
     } else {
-        console.error('Parent <article> element not found for target element.');
+        console.error('Parent <article> or [role="group"] element not found for target element.');
     }
     return null; // Return null if any required elements are not found
 }
 
 
-function findParentArticle(targetElement) {
+function findParentElement(targetElement) {
     let parent = targetElement.parentElement;
     
+    // Traverse up the DOM tree to find the closest <article> element
     while (parent) {
         if (parent.tagName.toLowerCase() === 'article') {
             return parent; // Return the <article> element once found
+        } else if (parent.parentElement == null) {
+            break; // Exit if there are no more parent elements
         }
         parent = parent.parentElement; // Move to the next parent element
+    }
+
+    // If no <article> is found, look for a parent with role="group"
+    parent = targetElement.parentElement; // Reset to the original parent
+    while (parent) {
+        if (parent.getAttribute('role') === 'group') {
+            return parent;
+        } else if (parent.parentElement == null) {
+            break; // Exit if there are no more parent elements
+        } 
+        parent = parent.parentElement;
     }
     return null;
 }
@@ -73,6 +101,7 @@ function createButton(targetElement) {
 
     //Create the button element
     const button = document.createElement('button');
+    button.type = 'button';
     button.classList.add('copy-link-button');
     button.innerText = 'FixUpX';
     button.style.color = 'rgb(113, 118, 123)';
@@ -88,28 +117,50 @@ function createButton(targetElement) {
     button.style.fontWeight = '500';
     button.style.fontSize = '14px';
 
+    function buttonDefaultState() {
+        button.innerText = 'FixUpX';
+        button.style.color = 'rgb(113, 118, 123)';
+        button.style.borderColor = 'rgb(113, 118, 123)';
+    }
+
+    function buttonSuccess(message) {
+        button.innerText = 'Copied';
+        button.style.color = '#0f0f';
+        button.style.borderColor = '#0f0f';
+        if (message) console.debug(message);
+        setTimeout(() => {
+            buttonDefaultState();
+        }, 2000);
+    }
+
+    function buttonFailure(message) {
+        button.innerText = 'Failed';
+        button.style.color = '#f00f';
+        button.style.borderColor = '#f00f';
+        if (message) console.error(message);
+        setTimeout(() => {
+            buttonDefaultState();
+        }, 2000);
+    }
 
     //Add an event listener for button click
-    button.addEventListener('click', () => {
+    button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
         //Copy the current webpage URL to the clipboard
         const postUrl = getButtonLink(targetElement);
-        const finalUrl = 'https://fixupx.com' + postUrl;
-        navigator.clipboard.writeText(finalUrl)
-            .then(() => {
-                button.innerText = 'Copied';
-                button.style.color = '#0f0f';
-                button.style.borderColor = '#0f0f';
-            })
-            .catch(err => {
-                button.innerText = 'Failed';
-                button.style.color = '#f00f';
-                button.style.borderColor = '#f00f';
-            });
-        setTimeout(() => {
-            button.innerText = 'FixUpX';
-            button.style.color = 'rgb(113, 118, 123)';
-            button.style.borderColor = 'rgb(113, 118, 123)';
-        }, 2000);
+        if (postUrl) {
+            const finalUrl = 'https://fixupx.com' + postUrl;
+            navigator.clipboard.writeText(finalUrl)
+                .then(() => {
+                    buttonSuccess()
+                })
+                .catch(err => {
+                    buttonFailure(err)
+                });
+        } else {
+            buttonFailure();
+        }
     });
 
     //Create the buttonContainer element
