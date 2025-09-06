@@ -32,8 +32,8 @@ function getButtonLink(targetElement) {
     // Assuming targetElement is a <time> element, find its closest parent <article>
     const parentElement = findParentElement(targetElement);
     if (parentElement && parentElement.tagName.toLowerCase() === 'article') {
-        // Query for the <time> element within the parent article
-        const timeElement = parentElement.querySelector('time');
+        // Query for a <time> element that is a child of an <a> element within the parent article
+        const timeElement = parentElement.querySelector('a time');
         if (timeElement) {
             // Find the closest parent <a> element (assuming it contains the href attribute)
             const linkElement = timeElement.closest('a');
