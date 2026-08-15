@@ -1,4 +1,7 @@
 <html>
+    <head>
+        <meta charset="utf-8"/>
+    </head>
     <style>
         body {
             width: 150px;
@@ -42,9 +45,22 @@
             margin: auto auto 0.5em auto;
         }
 
+        select {
+            width: 100%;
+            background-color: #333;
+            color: #fff;
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 2px 4px;
+            margin: 0.5em 0;
+            font-family: Arial, sans-serif;
+        }
+
     </style>
     <body>
         <img src="./images/icon-128.png" alt="fuX icon"/>
+        <hr/>
+        <select id="languageSelect"></select>
         <hr/>
         <p>Last Update:</p>
         <p>Release v0.5</p>
@@ -52,5 +68,6 @@
         <hr/>
         <a href="https://github.com/TylerSDavies/fuX" target="_blank">GitHub Repo</a>
         <a href="https://chromewebstore.google.com/detail/fux/ecjlgnjlkgndgajdijfjlmakeclfnoii" target="_blank">Chrome Web Store</a>
+        <script src="./scripts/popup.js"></script>
     </body>
 </html>
