@@ -1,3 +1,15 @@
+//Language copied links should translate to, empty string keeps the original
+let selectedLanguage = '';
+chrome.storage.sync.get({ language: '' }, result => {
+    selectedLanguage = result.language;
+});
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'sync' && changes.language) {
+        selectedLanguage = changes.language.newValue || '';
+    }
+});
+
+
 function handleDOMUpdate(mutationsList, observer) {
     mutationsList.forEach(mutation => {
         //Check if a DOM update occured
@@ -150,7 +162,11 @@ function createButton(targetElement) {
         //Copy the current webpage URL to the clipboard
         const postUrl = getButtonLink(targetElement);
         if (postUrl) {
-            const finalUrl = 'https://fixupx.com' + postUrl;
+            //Append the selected language so the embed translates the post
+            let finalUrl = 'https://fixupx.com' + postUrl;
+            if (selectedLanguage) {
+                finalUrl = finalUrl.split('?')[0] + '/' + selectedLanguage;
+            }
             navigator.clipboard.writeText(finalUrl)
                 .then(() => {
                     buttonSuccess()
