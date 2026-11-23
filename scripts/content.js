@@ -163,6 +163,22 @@ function applyEvenSpacing(group) {
         group.style.justifyContent = 'space-between';
     }
     for (const child of group.children) {
+        //A wrapper holding several items (e.g. bookmark + share) is flattened with
+        //display: contents, so each of its items takes part in the even spacing too
+        const isWrapper = !child.hasAttribute('data-engagement-action')
+            && !child.classList.contains(CONTAINER_CLASS)
+            && child.querySelector('[data-engagement-action]');
+        if (isWrapper) {
+            if (child.style.display !== 'contents') {
+                child.style.display = 'contents';
+            }
+            for (const inner of child.children) {
+                if (inner.style.flex !== '0 0 auto') {
+                    inner.style.flex = '0 0 auto';
+                }
+            }
+            continue;
+        }
         if (child.style.flex !== '0 0 auto') {
             child.style.flex = '0 0 auto';
         }
