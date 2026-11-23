@@ -75,21 +75,18 @@ function createButton(article, group, anchorItem) {
     button.type = 'button';
     button.classList.add(BUTTON_CLASS);
     button.innerText = 'FixUpX';
-    Object.assign(button.style, {
-        color: 'rgb(113, 118, 123)',
-        backgroundColor: '#0000',
-        border: '2px solid rgb(113, 118, 123)',
-        borderRadius: '12px',
-        fontFamily: 'TwitterChirp, system-ui, sans-serif',
-        width: '65px',
-        textAlign: 'center',
-        verticalAlign: 'middle',
-        cursor: 'pointer',
-        height: '24px',
-        fontWeight: '500',
-        fontSize: '14px',
-        padding: '0'
-    });
+    button.style.color = 'rgb(113, 118, 123)';
+    button.style.backgroundColor = '#0000';
+    button.style.border = '2px solid rgb(113, 118, 123)';
+    button.style.borderRadius = '12px';
+    button.style.fontFamily = 'TwitterChirp';
+    button.style.width = '68px';
+    button.style.textAlign = 'center';
+    button.style.verticalAlign = 'middle';
+    button.style.cursor = 'pointer';
+    button.style.height = '24px';
+    button.style.fontWeight = '500';
+    button.style.fontSize = '14px';
 
     function buttonDefaultState() {
         button.innerText = 'FixUpX';
@@ -97,11 +94,14 @@ function createButton(article, group, anchorItem) {
         button.style.borderColor = 'rgb(113, 118, 123)';
     }
 
-    function buttonSuccess() {
+    function buttonSuccess(message) {
         button.innerText = 'Copied';
         button.style.color = '#0f0f';
         button.style.borderColor = '#0f0f';
-        setTimeout(buttonDefaultState, 2000);
+        if (message) console.debug(message);
+        setTimeout(() => {
+            buttonDefaultState();
+        }, 2000);
     }
 
     function buttonFailure(message) {
@@ -109,7 +109,9 @@ function createButton(article, group, anchorItem) {
         button.style.color = '#f00f';
         button.style.borderColor = '#f00f';
         if (message) console.error('[fuX]', message);
-        setTimeout(buttonDefaultState, 2000);
+        setTimeout(() => {
+            buttonDefaultState();
+        }, 2000);
     }
 
     //Add an event listener for button click
@@ -127,24 +129,50 @@ function createButton(article, group, anchorItem) {
         if (selectedLanguage) {
             finalUrl += '/' + selectedLanguage;
         }
-        copyText(finalUrl).then(buttonSuccess).catch(buttonFailure);
+        copyText(finalUrl)
+            .then(() => {
+                buttonSuccess();
+            })
+            .catch(err => {
+                buttonFailure(err);
+            });
     });
 
     //Create the buttonContainer element
     const buttonContainer = document.createElement('div');
     buttonContainer.classList.add(CONTAINER_CLASS);
-    Object.assign(buttonContainer.style, {
-        margin: 'auto',
-        display: 'flex',
-        flex: '1.25',
-        justifyContent: 'flex-start',
-        alignItems: 'center',
-        minWidth: '70px'
-    });
+    buttonContainer.style.margin = 'auto';
     buttonContainer.appendChild(button);
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.flex = '1.25';
+    buttonContainer.style.justifyContent = 'flex-start';
+    buttonContainer.style.alignItems = 'center';
+    buttonContainer.style.minWidth = '70px';
 
     //Place the container right after the anchor item in the action bar
     anchorItem.insertAdjacentElement('afterend', buttonContainer);
+}
+
+
+//New X layout only: distribute all action bar items evenly, so the added button
+//doesn't leave uneven gaps next to the original items. Every item keeps its own
+//width and the free space is split into equal gaps between them.
+function applyEvenSpacing(group) {
+    if (!group.querySelector('[data-engagement-action]')) return;
+    if (group.style.justifyContent !== 'space-between') {
+        group.style.justifyContent = 'space-between';
+    }
+    for (const child of group.children) {
+        if (child.style.flex !== '0 0 auto') {
+            child.style.flex = '0 0 auto';
+        }
+        //Same horizontal padding as the X action buttons (px-3), so gaps look equal
+        if (child.classList.contains(CONTAINER_CLASS) && child.style.padding !== '0px 12px') {
+            child.style.margin = '0';
+            child.style.minWidth = '0';
+            child.style.padding = '0 12px';
+        }
+    }
 }
 
 
@@ -175,10 +203,11 @@ function processArticle(article) {
     }
     if (!group || !item) return;
 
-    //Exit if the button already exists in this action bar
-    if (group.querySelector('.' + CONTAINER_CLASS)) return;
-
-    createButton(article, group, item);
+    //Create the button unless it already exists in this action bar
+    if (!group.querySelector('.' + CONTAINER_CLASS)) {
+        createButton(article, group, item);
+    }
+    applyEvenSpacing(group);
 }
 
 
