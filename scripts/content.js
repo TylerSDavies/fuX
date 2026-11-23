@@ -9,119 +9,78 @@ chrome.storage.onChanged.addListener((changes, area) => {
     }
 });
 
+const BUTTON_CLASS = 'copy-link-button';
+const CONTAINER_CLASS = 'copy-link-button-container';
+const STATUS_RE = /^\/([^\/?#]+)\/status\/(\d+)/;
 
-function handleDOMUpdate(mutationsList, observer) {
-    mutationsList.forEach(mutation => {
-        //Check if a DOM update occured
-        if (mutation.type === 'childList') {
-            //Get all like buttons on page
-            let likeButtons = [...document.querySelectorAll('[data-testid="like"]')];
-            const unlikeButtons = [...document.querySelectorAll('[data-testid="unlike"]')];
-            likeButtons = likeButtons.concat(unlikeButtons);
-            //Create button after every like button if likeButtons isn't empty
-            if (likeButtons.length > 0) {
-                likeButtons.forEach(likeButton => createButton(likeButton));
-            }
+//Elements used to locate the post's action bar, checked in this order.
+//New X layout: [data-engagement-action="like"]
+//Old X layout: [data-testid="like"] and [data-testid="unlike"]
+const ANCHOR_SELECTORS = [
+    '[data-engagement-action="like"]',
+    '[data-testid="like"]',
+    '[data-testid="unlike"]',
+    '[data-engagement-action]',
+    '[data-testid="reply"]',
+    '[data-testid="bookmark"]'
+];
+
+
+//Returns the post path (/user/status/ID) found inside the article
+function getPostPath(article) {
+    //The first /user/status/ID link in the article belongs to the post itself
+    //(links like /analytics or /photo/1 are reduced to the base path by the regex)
+    const links = article.querySelectorAll('a[href*="/status/"]');
+    for (const a of links) {
+        const m = (a.getAttribute('href') || '').match(STATUS_RE);
+        if (m) return '/' + m[1] + '/status/' + m[2];
+    }
+    //If we're on the post's own page, fall back to the current URL
+    const m = location.pathname.match(STATUS_RE);
+    if (m) return '/' + m[1] + '/status/' + m[2];
+    return null;
+}
+
+
+function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text).catch(() => legacyCopy(text));
+    }
+    return legacyCopy(text);
+}
+
+//Fallback in case the Clipboard API is unavailable or blocked
+function legacyCopy(text) {
+    return new Promise((resolve, reject) => {
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            const ok = document.execCommand('copy');
+            ta.remove();
+            ok ? resolve() : reject(new Error('execCommand copy failed'));
+        } catch (e) {
+            reject(e);
         }
     });
 }
 
 
-function buttonExistsAfter(targetElement) {
-    // Get the next sibling of the targetElement
-    const targetElementParent = targetElement.parentNode;
-    let nextElement = targetElementParent.nextElementSibling;
-    
-    // Check if the next sibling has the class 'copy-link-button'
-    if (nextElement && nextElement.classList.contains('copy-link-button-container')) {
-        return true;
-    }
-    return false;
-}
-
-
-function getButtonLink(targetElement) {
-    // Assuming targetElement is a <time> element, find its closest parent <article>
-    const parentElement = findParentElement(targetElement);
-    if (parentElement && parentElement.tagName.toLowerCase() === 'article') {
-        // Query for a <time> element that is a child of an <a> element within the parent article
-        const timeElement = parentElement.querySelector('a time');
-        if (timeElement) {
-            // Find the closest parent <a> element (assuming it contains the href attribute)
-            const linkElement = timeElement.closest('a');
-            if (linkElement) {
-                // Retrieve the href attribute from the <a> element
-                const targetUrl = linkElement.getAttribute('href');
-                return targetUrl;
-            } else {
-                console.error('Parent <a> element not found for <time> element.');
-            }
-        } else {
-            console.error('Child <time> element not found within parent <article>.');
-        }
-    } else if (parentElement && parentElement.getAttribute('role') === 'group') {
-        // Query child elements within the role="group" parent for role="link"
-        const linkElement = parentElement.querySelector('[role="link"]');
-        if (linkElement) {
-            // Retrieve the href attribute from the <a> element
-            const targetUrl = linkElement.getAttribute('href');
-            // Remove '/analytics' if it exists in the URL
-            if (targetUrl && targetUrl.includes('/analytics')) {
-                return targetUrl.replace('/analytics', '');
-            }
-            return targetUrl;
-        } else {
-            console.error('<a> element with role="link" not found within parent [role="group"].');
-        }
-    } else {
-        console.error('Parent <article> or [role="group"] element not found for target element.');
-    }
-    return null; // Return null if any required elements are not found
-}
-
-
-function findParentElement(targetElement) {
-    let parent = targetElement.parentElement;
-    
-    // Traverse up the DOM tree to find the closest <article> element
-    while (parent) {
-        if (parent.tagName.toLowerCase() === 'article') {
-            return parent; // Return the <article> element once found
-        } else if (parent.parentElement == null) {
-            break; // Exit if there are no more parent elements
-        }
-        parent = parent.parentElement; // Move to the next parent element
-    }
-
-    // If no <article> is found, look for a parent with role="group"
-    parent = targetElement.parentElement; // Reset to the original parent
-    while (parent) {
-        if (parent.getAttribute('role') === 'group') {
-            return parent;
-        } else if (parent.parentElement == null) {
-            break; // Exit if there are no more parent elements
-        } 
-        parent = parent.parentElement;
-    }
-    return null;
-}
-
-
-function createButton(targetElement) {
-    //Check if button exists after targetElement and exit if one does
-    if (buttonExistsAfter(targetElement)) return;
-
+function createButton(article, group, anchorItem) {
     //Create the button element
     const button = document.createElement('button');
     button.type = 'button';
-    button.classList.add('copy-link-button');
+    button.classList.add(BUTTON_CLASS);
     button.innerText = 'FixUpX';
     button.style.color = 'rgb(113, 118, 123)';
     button.style.backgroundColor = '#0000';
     button.style.border = '2px solid rgb(113, 118, 123)';
     button.style.borderRadius = '12px';
     button.style.fontFamily = 'TwitterChirp';
-    button.style.width = '65px';
+    button.style.width = '68px';
     button.style.textAlign = 'center';
     button.style.verticalAlign = 'middle';
     button.style.cursor = 'pointer';
@@ -149,7 +108,7 @@ function createButton(targetElement) {
         button.innerText = 'Failed';
         button.style.color = '#f00f';
         button.style.borderColor = '#f00f';
-        if (message) console.error(message);
+        if (message) console.error('[fuX]', message);
         setTimeout(() => {
             buttonDefaultState();
         }, 2000);
@@ -159,42 +118,136 @@ function createButton(targetElement) {
     button.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
-        //Copy the current webpage URL to the clipboard
-        const postUrl = getButtonLink(targetElement);
-        if (postUrl) {
-            //Append the selected language so the embed translates the post
-            let finalUrl = 'https://fixupx.com' + postUrl;
-            if (selectedLanguage) {
-                finalUrl = finalUrl.split('?')[0] + '/' + selectedLanguage;
-            }
-            navigator.clipboard.writeText(finalUrl)
-                .then(() => {
-                    buttonSuccess()
-                })
-                .catch(err => {
-                    buttonFailure(err)
-                });
-        } else {
-            buttonFailure();
+        //Read the link at click time, since React may have reused the DOM node
+        const postPath = getPostPath(button.closest('article') || article);
+        if (!postPath) {
+            buttonFailure('Post link not found');
+            return;
         }
+        //Append the selected language so the embed translates the post
+        let finalUrl = 'https://fixupx.com' + postPath;
+        if (selectedLanguage) {
+            finalUrl += '/' + selectedLanguage;
+        }
+        copyText(finalUrl)
+            .then(() => {
+                buttonSuccess();
+            })
+            .catch(err => {
+                buttonFailure(err);
+            });
     });
 
     //Create the buttonContainer element
     const buttonContainer = document.createElement('div');
-    buttonContainer.classList.add('copy-link-button-container');
+    buttonContainer.classList.add(CONTAINER_CLASS);
     buttonContainer.style.margin = 'auto';
     buttonContainer.appendChild(button);
     buttonContainer.style.display = 'flex';
     buttonContainer.style.flex = '1.25';
     buttonContainer.style.justifyContent = 'flex-start';
+    buttonContainer.style.alignItems = 'center';
     buttonContainer.style.minWidth = '70px';
 
-    //Create buttonContainer after targetElement's parent
-    const targetElementParent = targetElement.parentNode;
-    targetElementParent.insertAdjacentElement('afterend', buttonContainer);
+    //Place the container right after the anchor item in the action bar
+    anchorItem.insertAdjacentElement('afterend', buttonContainer);
 }
 
 
-const observer = new MutationObserver(handleDOMUpdate);
+//New X layout only: distribute all action bar items evenly, so the added button
+//doesn't leave uneven gaps next to the original items. Every item keeps its own
+//width and the free space is split into equal gaps between them.
+function applyEvenSpacing(group) {
+    if (!group.querySelector('[data-engagement-action]')) return;
+    if (group.style.justifyContent !== 'space-between') {
+        group.style.justifyContent = 'space-between';
+    }
+    for (const child of group.children) {
+        //A wrapper holding several items (e.g. bookmark + share) is flattened with
+        //display: contents, so each of its items takes part in the even spacing too
+        const isWrapper = !child.hasAttribute('data-engagement-action')
+            && !child.classList.contains(CONTAINER_CLASS)
+            && child.querySelector('[data-engagement-action]');
+        if (isWrapper) {
+            if (child.style.display !== 'contents') {
+                child.style.display = 'contents';
+            }
+            for (const inner of child.children) {
+                if (inner.style.flex !== '0 0 auto') {
+                    inner.style.flex = '0 0 auto';
+                }
+            }
+            continue;
+        }
+        if (child.style.flex !== '0 0 auto') {
+            child.style.flex = '0 0 auto';
+        }
+        //Same horizontal padding as the X action buttons (px-3), so gaps look equal
+        if (child.classList.contains(CONTAINER_CLASS) && child.style.padding !== '0px 12px') {
+            child.style.margin = '0';
+            child.style.minWidth = '0';
+            child.style.padding = '0 12px';
+        }
+    }
+}
+
+
+//Returns the direct child of the action bar that contains the given element
+function getBarItem(group, element) {
+    let item = element;
+    while (item.parentElement && item.parentElement !== group) {
+        item = item.parentElement;
+    }
+    return item.parentElement === group ? item : null;
+}
+
+
+function processArticle(article) {
+    let anchor = null;
+    for (const selector of ANCHOR_SELECTORS) {
+        anchor = article.querySelector(selector);
+        if (anchor) break;
+    }
+    if (!anchor) return;
+
+    //The action bar is the [role="group"] that contains the anchor
+    let group = anchor.closest('[role="group"]');
+    let item = group ? getBarItem(group, anchor) : null;
+    if (!group || !item) {
+        item = anchor.parentElement;
+        group = item ? item.parentElement : null;
+    }
+    if (!group || !item) return;
+
+    //Create the button unless it already exists in this action bar
+    if (!group.querySelector('.' + CONTAINER_CLASS)) {
+        createButton(article, group, item);
+    }
+    applyEvenSpacing(group);
+}
+
+
+function scan() {
+    document.querySelectorAll('article').forEach(processArticle);
+}
+
+
+//Batch DOM updates into a single scan per frame
+let scanScheduled = false;
+function scheduleScan() {
+    if (scanScheduled) return;
+    scanScheduled = true;
+    requestAnimationFrame(() => {
+        scanScheduled = false;
+        try {
+            scan();
+        } catch (e) {
+            console.error('[fuX]', e);
+        }
+    });
+}
+
+const observer = new MutationObserver(scheduleScan);
 const config = { childList: true, subtree: true };
 observer.observe(document.body, config);
+scan();
